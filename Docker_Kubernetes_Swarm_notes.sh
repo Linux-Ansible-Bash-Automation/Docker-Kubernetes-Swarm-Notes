@@ -148,6 +148,26 @@ Session 23: Assignment Answers: Manage multiple containers
 # docker image ls
 
 
+Session 24: What's going on In containers: CLI process monitoring
+----------------------------------------------------------------------------------------------------------
+What's going on In containers:
+
+* docker container top - process list in one container
+* docker container inspect - details of one container config 
+* docker container stats - performance stats for all containers
+
+# docker container top web-browser
+# docker container top sql
+# docker container inspect sql
+# docker container inspect web-browser
+
+Note: inspect will show metadata about the container (start up, config, volumes, networking, etc)
+
+# docker container stats --help
+# docker container stats
+
+Note: stats command Display a live stream of container(s) resource usage statistics
+
 
 
 
