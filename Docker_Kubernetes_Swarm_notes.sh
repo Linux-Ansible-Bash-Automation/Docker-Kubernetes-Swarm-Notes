@@ -380,5 +380,211 @@ Answer is pretty same as above
 Session 33: Changes to Upcoming Assignment
 -------------------------------------------------------------------------------------------------------------------------
 
+Session 34: Assignment: DNS Round Robin Test
+-------------------------------------------------------------------------------------------------------------------------
+
+* Ever since Docker Engine 1.11, we can have multiple containers on a created network respond to the same DNS address
+* Create a new virtual network (default bridge driver)
+* Create two containers from elasticsearch: 2 image
+* Research and use -network-alias search when creating them to give them an additional DNS name to respond to
+* Run alpine nslookup search with -- net to see the two containers list for the same DNS name
+* Run centos curl -s search: 9200 with -- net multiple times until you see both "name" fields show
+
+
+Session 35: Assignment Answers: DNS Round Robin Test
+--------------------------------------------------------------------------------------------------------------------------
+
+# docker network create dude
+    {to create a new network called dude
+
+# docker container run -d --net dude --net-alias search elasticsearch:2
+    {to run a new elasticsearch container and attach it to the dude network with a network alias of search
+
+# docker container run -d --net dude --net-alias search elasticsearch:2
+    {to run another elasticsearch container and attach it to the dude network with the same network alias of search
+
+# docker container run --rm --net dude alpine nslookup search
+    {to run an alpine container and use nslookup to see the two containers that are responding to the same DNS name of search
+
+# docker container run --rm --net dude centos:7 curl -s search:9200
+    {to run a centos container and use curl to see the two elasticsearch containers that are responding to the same DNS name of search on port 9200, you may need to run this command multiple times to see both "name" fields show up in the response due to DNS round robin load balancing.
+
+
+
+Section 5: Container Images, Where to find them and How to build them
+================================================================================================================================
+
+Session 36: What's In an Image (and What isn't)
+-------------------------------------------------------------------------------------------------------------------------
+* All about images, the building blocks of containers
+* What's in an image (and what isn't)
+* Using Docker Hub registry
+* Managing our local image cache
+* Building our own images
+
+What's in an image (and what isn't):
+
+* App binaries and dependencies
+* Metadata about the image data and how to run the image
+* Official definition: "An Image is an ordered collection of root filesystem changes and the corresponding execution parameters for use within a container runtime."
+* Not a complete OS. No kernel, kernel modules (e.g. drivers)
+* Small as one file (your app binary) like a golang static binary
+* Big as a Ubuntu distro with apt, and Apache, PHP, and more installed
+
+
+Session 37: The Mighty Hub: Using Docker Hub Registry Images:
+-------------------------------------------------------------------------------------------------------------------------
+* Basics of Docker Hub (hub.docker.com)
+* Find Official and other good public images
+* Download images and basics of image tags
+
+
+Session 38: Images and their layers: Discover the Image cache 
+-------------------------------------------------------------------------------------------------------------------------
+* Image layers
+* union file system
+* history and inspect commands
+* copy on write
+
+# docker image history nginx:latest
+    {to see the layers of the nginx image and how they are built up
+
+# docker image inspect nginx
+    {to see the metadata of the nginx image, including its layers, size, and other information
+
+Image and Their Layers - Review:
+* Images are made up of file system changes and metadata
+* Each layer is uniquely identified and only stored once on a host
+* This saves storage space on host and transfer time on push/pull
+* A container is just a single read/write layer on top of image
+* docker image history and inspect commands can teach us
+
+
+Session 39: Image Tagging and Pushing to Docker HUb
+-------------------------------------------------------------------------------------------------------------------------
+* All about image tags
+* How to upload to Docker hub
+* Image ID vs.Tag
+
+# docker image tap --help
+    {to see all options for tagging an image
+
+# docker pull mysql/mysql-server
+    {to pull the mysql/mysql-server image from Docker Hub
+
+# docker image tag nginx sandeepbandela/nginx
+    {to tag the nginx image with a new name sandeepbandela/nginx, which can be used to push to Docker Hub under your account
+
+# docker login
+    {to log in to Docker Hub with your credentials
+
+# cat .docker/config.json
+    {to see the Docker configuration file which contains your login credentials and other settings
+
+# docker login -u sandeepbandela
+    {to log in to Docker Hub with the username sandeepbandela, you will be prompted to enter your password
+
+# docker image push sandeepbandela/nginx
+    {to push the tagged nginx image to Docker Hub under your account, you will need to have permission to push to that repository, and it may take some time to upload depending on the size of the image and your internet connection speed
+
+Note: so if your username is sandeepbandela you can only push to images that start with sandeepbandela/ like sandeepbandela/nginx, you cannot push to images that start with other usernames or the official library images.
+
+# docker image push sandeepbandela/nginx:testing
+    {to push the tagged nginx image with a specific tag of testing to Docker Hub under your account, you can choose any tag name you like, and it will be added to the repository on Docker Hub. This allows you to have multiple versions of the same image under different tags for better organization and version control.
+
+
+Session 40: Building Images: The Dockerfile basics
+-------------------------------------------------------------------------------------------------------------------------
+Docs: https://docs.docker.com/reference/dockerfile/
+
+# docker image build -f some-dockerfile
+    {to build a new image from a Dockerfile, you can specify the path to the Dockerfile with the -f option, and you can also specify a tag for the new image with the -t option, for example: docker image build -f Dockerfile -t myimage:latest . This will build an image from the Dockerfile in the current directory and tag it as myimage:latest.
+
+
+Session 41: Building Images: Running Docker Builds
+-------------------------------------------------------------------------------------------------------------------------
+
+[root@sandy007.docker dockerfile-sample-1]$ ls -l
+total 8
+-rw-r--r-- 1 root root 6510 Feb 24 12:59 Dockerfile
+
+Note: Dockerfile is must and should be in the same directory where you are running the docker build command
+
+#  docker image build -t sandynginx .
+    {to build a new image from the Dockerfile in the current directory and tag it as sandynginx:latest, you can also specify a different tag if you want, for example: docker image build -t sandynginx:1.0 . This will build the image and tag it as sandynginx:1.0 instead of latest.
+
+* Add port 8080 to EXPOSE stanza in Dockerfile to check how layers work
+
+# docker image build -t sandynginx .
+    {Rebuild the image after changing the Dockerfile, you will see that only the layer that changed (the one with the EXPOSE instruction) will be rebuilt, and the other layers will be cached and reused, which saves time and resources during the build process. This is one of the key benefits of using Docker's layered image system.
+    
+# docker image inspect sandynginx:latest
+    {to check layers 
+
+
+Session 42: Building Images: Estending official images 
+-------------------------------------------------------------------------------------------------------------------------
+
+# docker container run -p 80:80 --rm nginx
+    {to run a new nginx container and publish port 80, with --rm to automatically remove the container when it stops
+
+# docker image build -t nginx-with-html .
+    {to build a new image from the Dockerfile in the current directory and tag it as nginx-with-html:latest, this Dockerfile should be based on the official nginx image and add some custom HTML files to be served by nginx. After building the image, you can run a container from it to see your custom HTML being served by nginx.
+
+
+Session 43: Assignment: Build your own Dockerfile and Run Containers from it
+-------------------------------------------------------------------------------------------------------------------------
+
+· Dockerfiles are part process workflow and part art
+· Take existing Node.js app and Dockerize it
+· Make Dockerfile. Build it. Test it. Push it. (rm it). Run it.
+. Expect this to be iterative. Rarely do I get it right the first time.
+· Details in dockerfile-assignment-1/Dockerfile
+· Use the Alpine version of the official 'node' 6.x image
+· Expected result is web site at http://localhost
+· Tag and push to your Docker Hub account (free)
+. Romove vour image from local cache run again from Hub
+
+
+Session 44: Assignment Answers: Build your own Dockerfile and Run Containers from it
+-------------------------------------------------------------------------------------------------------------------------
+
+
+Session 45: Using prone to keep your Docker System clean (Youtube)
+-------------------------------------------------------------------------------------------------------------------------
+
+Here's a YouTube video I made about it: https://youtu.be/_4QzP7uwtvI
+
+
+
+
+
+
+
+
+Section 6: Persistent Data: Volumes, Volumes, Volumes
+===========================================================================================================================
+
+Session 46: Container Lifetime & Persistent Date
+---------------------------------------------------------------------------------------------------------------------------
+
+Section Overview
+
+* Defining the problem of persistent data
+* Key concepts with containers: immutable, ephemeral
+* Learning and using Data Volumes
+* Learning and using Bind Mounts
+* Assignments
+
+Container Lifetime & Persistent Data
+
+· Containers are usually immutable and ephemeral
+· "immutable infrastructure": only re-deploy containers, never change
+· This is the ideal scenario, but what about databases, or unique data?
+· Docker gives us features to ensure these "separation of concerns"
+· This is known as "persistent data"
+· Two ways: Volumes and Bind Mounts
+· Volumes: make special location outside of container UFS
+. Bind Mounts: link container path to host path
 
 
