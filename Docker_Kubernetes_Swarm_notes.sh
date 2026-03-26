@@ -578,13 +578,405 @@ Section Overview
 
 Container Lifetime & Persistent Data
 
-· Containers are usually immutable and ephemeral
-· "immutable infrastructure": only re-deploy containers, never change
-· This is the ideal scenario, but what about databases, or unique data?
-· Docker gives us features to ensure these "separation of concerns"
-· This is known as "persistent data"
-· Two ways: Volumes and Bind Mounts
-· Volumes: make special location outside of container UFS
-. Bind Mounts: link container path to host path
+* Containers are usually immutable and ephemeral
+* "immutable infrastructure": only re-deploy containers, never change
+* This is the ideal scenario, but what about databases, or unique data?
+* Docker gives us features to ensure these "separation of concerns"
+* This is known as "persistent data"
+* Two ways: Volumes and Bind Mounts
+* Volumes: make special location outside of container UFS
+* Bind Mounts: link container path to host path
+
+
+Session 47: Persistent Data: Data Volumes
+-----------------------------------------------------------------------------------------------------------------------------
+
+# docker container runn -d --name mysql -e MYSQL_ALLOW_EMPTY_PASSWORD=TRUE mysql
+    {If we built mysql like this without using named volumes the volume name looks like below i.e: shah
+
+[root@sandy007.docker ~]$ docker volume ls
+DRIVER    VOLUME NAME
+local     2d123e6386fee66df529508abea4ae21efafc659f426d9004338d64b3c03f735
+
+# docker container run -d --name mysql -e MYSQL_ALLOW_EMPTY_PASSWORD=TRUE -v mysql-data:/var/lib/mysql mysql
+    {to run a new mysql container with a named volume called mysql-data that is mounted to /var/lib/mysql inside the container, this allows the data stored in /var/lib/mysql to persist even if the container is removed, and it also allows you to easily manage the volume with Docker commands.
+
+# docker container inspect mysql
+    { to check defualt volume directory for mysql container, you can find the volume information under the "Mounts" section of the container inspect output, it will show you the source and destination of the volume, as well as other details about the volume configuration.
+    
+Note: We can use mysql-data:/var/lib/mysql multiple times in different containers and they will all share the same data, this is useful for scenarios like running multiple mysql containers that need to access the same database files.
+
+Note: Deleting the container will not delete the data in the volume, you can remove the container and the data will still be there when you run a new container with the same volume name.
+
+
+Session 48: Shell Differences for Path expansion
+-----------------------------------------------------------------------------------------------------------------------------
+Here's the important part. Each shell may do this differently, so here's a cheat sheet for which OS and Shell your using. I'll be using $(pwd) on a Mac, but yours may be different!
+
+This isn't a Docker thing, it's a Shell thing.
+
+For PowerShell use: ${pwd} 
+
+For cmd.exe "Command Prompt use: %cd%
+
+Linux/macOS bash, sh, zsh, and Windows Docker Toolbox Quickstart Terminal use: $(pwd) 
+
+Note, if you have spaces in your path, you'll usually need to quote the whole path in the docker command. 
+
+
+Session 49: Persistent Data: Bind Mounting
+-----------------------------------------------------------------------------------------------------------------------------
+Persistent Data: Bind Mounting
+
+* Maps a host file or directory to a container file or directory
+* Basically just two locations pointing to the same file(s)
+* Again, skips UFS, and host files overwrite any in container
+* Can't use in Dockerfile, must be at container run
+* ... run -v /Users/bret/stuff:/path/container (mac/linux)
+* ... run -v //c/Users/bret/stuff:/path/container (windows)
+
+# We are going to build nginx from Dockerfile, that's where we know file location of nginx container
+[root@sandy007.docker dockerfile-sample-2]$ pwd
+/root/Docker-mastery/udemy-docker-mastery/dockerfile-sample-2
+[root@sandy007.docker dockerfile-sample-2]$ ls -l
+total 12
+-rw-r--r-- 1 root root  410 Feb 24 12:59 Dockerfile
+-rw-r--r-- 1 root root 1178 Mar 17 16:35 index.html
+-rw-r--r-- 1 root root   10 Mar 17 16:42 test.txt
+
+# docker container run -d --name nginx -p 80:80 -v $(pwd):/usr/share/nginx/html nginx
+    {to run a new nginx container and bind mount the current directory on the host to /usr/share/nginx/html inside the container, this allows you to serve the files in the current directory through nginx, and any changes you make to the files in the current directory will be reflected in the container immediately since it's a bind mount.
+
+# docker container exec -it nginx bash
+    {you can also check the contents of /usr/share/nginx/html to see the files from the host that are being served
+
+Note: Bind mounts are great for development and testing scenarios where you want to have real-time access to the files on the host, but they can be less secure and less portable than volumes, so it's important to choose the right option based on your use case.
+
+
+Session 50: Database passwords in Containers
+-----------------------------------------------------------------------------------------------------------------------------
+We all know databases usually need passwords, but since the dawn of Docker, the postgres image (and a few others like redis) has allowed you to do a simple docker run on it and it starts without a password. Sure you could set a password but it didn't require one.
+
+In Feburary 2020 that changed, and will affect using postgres in this course (and my others). When running postgres now, you'll need to either set a password, or tell it to allow any connection (which was the default before this change).
+
+For docker run, and the forthcoming Docker Compose sections, you need to either set a password with the environment variable:
+
+POSTGRES_PASSWORD=mypasswd
+
+Or tell it to ignore passwords with the environment variable:
+
+POSTGRES_HOST_AUTH_METHOD=trust
+
+Note this change was in the Docker Hub image, and not a change in postgres itself.
+
+
+Session 51: Updated Postgres Version for Next video Assignment
+-----------------------------------------------------------------------------------------------------------------------------
+In the next video, you'll do an assignment to illustrate how easy it is to swap out one Docker image for another connected to the same volume. Since the video's release, Postgres has had new versions, so I thought I'd let you know you can do the same assignment with recent versions of Postgres. These newer versions also work on arm64 and Apple Silicon machines.
+
+So, when you see the "old" and "new" versions of the Postgres SQL image in the Assignment video, you can replace them with these versions:
+
+postgres:15.1
+postgres:15.2
+
+
+Session 52: Assignment: Database Upgrades with Named Volumes
+-------------------------------------------------------------------------------------------------------------------------
+Assignment: Named Volumes
+
+* Database upgrade with containers
+* Create a postgres container with named volume psql-data using
+version 9.6.1
+* Use Docker Hub to learn VOLUME path and versions needed to run it
+* Check logs, stop container
+* Create a new postgres container with same named volume using
+9.6.2
+* Check logs to validate
+* (this only works with patch versions, most SQL DB's require manual commands to upgrade DB's to major/minor versions. i.e. it's a DB limitation not a container one)
+
+
+Session 53: Assignment Answers: update for recent Postgres Changes
+-------------------------------------------------------------------------------------------------------------------------
+
+# docker volume create psql-data
+    {to create a new named volume called psql-data
+
+# docker container run -d --name psql-18 -e POSTGRES_PASSWORD=mysecretpassword -v psql-data:/var/lib/postgresql/ postgres:18
+    {to run a new postgres container with the name psql-18, set the POSTGRES_PASSWORD environment variable to mysecretpassword, and mount the named volume psql-data to /var/lib/postgresql/ inside the container, using the postgres:18 image
+
+# docker container logs psql-18
+    {to check the logs of the psql-18 container to see if it started successfully
+
+# docker container stop psql-18
+    {to stop the psql-18 container
+
+# docker container run -d --name psql-18.3 -e POSTGRES_PASSWORD=mysecretpassword -v psql-data:/var/lib/postgresql/ postgres:18.3
+    {to run a new postgres container with the name psql-18.3, set the POSTGRES_PASSWORD environment variable to mysecretpassword, and mount the same named volume psql-data to /var/lib/postgresql/ inside the container, using the postgres:18.3 image, this will allow you to see if the data from the previous container is still accessible and if the upgrade was successful.
+
+# docker container logs psql-18.3
+    {to check the logs of the psql-18.3 container to see if it started successfully and if it can access the data from the previous container, you should see that the data is still there and the upgrade was successful since we used the same named volume for both containers.
+
+Note: This assignment illustrates how using named volumes allows you to persist data across container instances, and how you can easily swap out one container for another while still retaining access to the same data, which is a key benefit of using Docker for managing stateful applications like databases.
+
+
+Session 54: Assignment Answers: Database Upgrades with Named Volumes
+-------------------------------------------------------------------------------------------------------------------------
+We already covered this in the previous video, but just to reiterate, the key takeaway from this assignment is that by using named volumes, you can easily manage and persist data across different container instances, which is especially useful for stateful applications like databases. This allows you to perform upgrades or changes to your application without losing your data, and it also makes it easier to manage your application's lifecycle in a containerized environment.
+
+
+Session 55: Permissions Across Multiple Containers
+-------------------------------------------------------------------------------------------------------------------------
+
+At some point you'll have file permissions problems with container apps not having the permissions they need. Maybe you want multiple containers to access the same volume(s). Or maybe you're bind-mounting existing files into a container.
+
+Note that the below info is about pure Linux hosts, like production server setups. If you're using Docker Desktop locally, it will translate permissions from your host (macOS & Windows) into the container (Linux) automatically, but when working on pure Linux servers with just dockerd, no translation is made.
+
+How file permissions work across multiple containers accessing the same volume or bind-mount:
+File ownership between containers and the host are just numbers. They stay consistent no matter how you run them. Sometimes you see friendly user names in commands like ls but those are just name-to-number aliases that you'll see in `/etc/passwd` and `/etc/group`. Your host has those files, and usually, your containers will have their own. They are usually different. These files are really just for humans to see friendly names. The Linux Kernel only cares about IDs, which are attached to each file and directory in the file system itself, and those IDs are the same no matter which process accesses them.
+
+When a container is just accessing its own files, this isn't usually an issue.
+
+But for multiple containers accessing the same volume or bind-mount, problems can arise in two ways:
+
+1. Problem one: The `/etc/passwd` is different across containers. Creating a named user in one container and running as that user may use ID 700, but that same name in another container with a different `/etc/passwd` may use a different ID for that same username. That's why I only care about IDs when trying to sync up permissions. You'll see this confusion if you're running a container on a Linux VM and it had a volume or bind-mount. If you do an ls on those files from the host, it may show them owned by ubuntu or node or systemd, etc. Then if you run ls inside the container, it may show a different friendly username. The IDs are the same in both cases, but the host will have a different passwd file than the container, and show you different friendly names. Different names are fine, because it's only ID that counts. Two processes trying to access the same file must have a matching user ID or group ID.
+
+2. Problem two: Your two containers are running as different users. Maybe the user/group IDs and/or the USER statement in your Dockerfiles are different, and the two containers are technically running under different IDs. Different apps will end up running as different IDs. For example, the node base image creates a user called node with ID of 1000, but the NGINX image creates an nginx user as ID 101. Also, some apps spin-off sub-processes as different users. NGINX starts its main process (PID 1) as root (ID 0) but spawns sub-processes as the nginx user (ID 101), which keeps it more secure.
+
+So for troubleshooting, this is what I do:
+Use the command ps aux in each container to see a list of processes and usernames. The process needs a matching user ID or group ID to access the files in question.
+
+Find the UID/GID in each containers `/etc/passwd` and `/etc/group` to translate names to numbers. You'll likely find there a miss-match, where one containers process originally wrote the files with its UID/GID and the other containers process is running as a different UID/GID.
+
+Figure out a way to ensure both containers are running with either a matching user ID or group ID. This is often easier to manage in your own custom app (when using a language base image like python or node) rather than trying to change a 3rd party app's container (like nginx or postgres)... but it all depends. This may mean creating a new user in one Dockerfile and setting the startup user with USER. (see USER docs) The node default image has a good example of the commands for creating a user and group with hard-coded IDs:
+
+RUN groupadd --gid 1000 node \\
+        && useradd --uid 1000 --gid node --shell /bin/bash --create-home node
+
+Note: When setting a Dockerfile's USER, use numbers, which work better in Kubernetes than using names.
+
+Note 2: If ps doesn't work in your container, you may need to install it. In debian-based images with apt, you can add it with apt-get update && apt-get install procps
+
+
+Session 56: Edit code running in Container with Bind Mounts
+-------------------------------------------------------------------------------------------------------------------------
+* Use a Jekyll "Static Site Generator" to start a local web server
+* Don't have to be web developer: this is example of bridging the gap between local file access and apps running in containers
+* source code is in the course repo under bindmount-sample-1
+* We edit files with editor on our host using native tools
+* Container detects changes with host files and updates web server
+* start container with docker run -p 80:4000 -v $(pwd):/site bretfisher/jeky11-serve
+* Refresh our browser to see changes
+* Change the file in _posts\  and refrech browser to see changes
+
+
+Session 57: Assignment Answers: Edit code running in Container with Bind Mounts
+-------------------------------------------------------------------------------------------------------------------------   
+[root@sandy007.docker bindmount-sample-1]$ pwd
+/root/Docker-mastery/udemy-docker-mastery/bindmount-sample-1
+[root@sandy007.docker bindmount-sample-1]$ docker container run -d -p 80:4000 -v $(pwd):/site bretfisher/jekyll-serve
+    {to run a new container from the bretfisher/jekyll-serve image, publish port 80 to 4000, and bind mount the current directory to /site inside the container, this will allow you to serve the files in the current directory through the jekyll-serve application running in the container.
+
+[root@sandy007.docker _posts]$ pwd
+/root/Docker-mastery/udemy-docker-mastery/bindmount-sample-1/_posts
+[root@sandy007.docker _posts]$ ls -l
+total 4
+-rw-r--r-- 1 root root 1378 Mar 18 06:56 2020-07-21-welcome-to-jekyll.markdown
+
+Note: If we edit the file 2020-07-21-welcome-to-jekyll.markdown and save it, we can then refresh our browser to see the changes reflected in the web server running in the container, this is because of the bind mount we set up which allows real-time access to the files on the host from within the container. Here i tested changing title in the markdown file and it reflected in the browser after refreshing. This illustrates how bind mounts can be useful for development scenarios where you want to have real-time access to your files while they are being served by an application running in a container.
+
+
+
+
+
+
+
+
+
+Section 7: Dockerfile ENTRYPOINT
+===========================================================================================================================
+
+Session 58: Intro: Review before ENTRYPOINT
+-------------------------------------------------------------------------------------------------------------------------
+- [Docs: Dockerfile reference](https://docs.docker.com/reference/dockerfile/)
+- [Docs: ENTRYPOINT](https://docs.docker.com/reference/dockerfile/#entrypoint)
+
+
+Session 59: Buildtime vs. Runtime
+-------------------------------------------------------------------------------------------------------------------------
+* Buildtime statements affect the files in the image or how the image is built
+* Runtime statements are typically stored as metadata and affect the container
+* Some statements affect how the image is built and also change container start behavior
+* Overwrite statements replace any previous use
+* Additive statements add to any previous use
+* Know your base (FROM) images. Many statement types affect downstream images
+* Understanding these effects helps troubleshoot Dockerfiles and container issues
+
+Note: Check file in resources to know more
+
+
+Session 60: What's an ENTRYPOINT?
+-------------------------------------------------------------------------------------------------------------------------
+* ENTRYPOINT executes a command on container start
+* ENTRYPOINT is a Runtime statement, stored as metadata with an image
+* Only the last ENTRYPOINT in a Dockerfile is used, making it an Overwrite type
+* A container needs at least a CMD or an ENTRYPOINT to know how to start
+* ENTRYPOINT requires more typing to overwrite compared to CMD, so it's rarely used by itself as a replacement for CMD
+* You can overwrite ENTRYPOINT with docker run -- entrypoint "something" <image>
+
+# docker run busybox
+    {to run a new container from the busybox image, this will use the default command specified in the image's Dockerfile to start the container, which is usually something like "sh" or "echo", depending on the image. You can also specify a different command to run by adding it after the image name, for example: docker run busybox echo "Hello, World!" This will override the default command and run "echo Hello, World!" instead when the container starts.
+
+# docker inspect  busybox
+    {to inspect the busybox image and see its metadata, including the default command and entrypoint specified in its Dockerfile, this will give you information about how the container will start when you run it without specifying a command, and it will also show you if there is an ENTRYPOINT defined for the image. You can look for the "Cmd" and "Entrypoint" fields in the output to see what they are set to.
+
+     "Cmd": [
+         "sh"
+
+# docker run -it busybox
+    {to run a new container from the busybox image in interactive mode with a TTY, this will start the container and give you a shell prompt where you can interact with the container's file system and run commands. The default command for busybox is usually "sh", so when you run it like this, it will start a shell session inside the container.
+
+# [root@sandy007.docker ~]$ cd Docker-mastery/udemy-docker-mastery/dockerfiles/entrypoint/entrypoint-1/
+
+[root@sandy007.docker entrypoint-1]$ cat Dockerfile
+FROM busybox:latest
+
+CMD ["hostname"]
+
+[root@sandy007.docker entrypoint-1]$ docker build -t hostname .
+
+[root@sandy007.docker entrypoint-1]$ docker run hostname date
+Tue Mar 24 02:39:02 UTC 2026
+
+[root@sandy007.docker entrypoint-1]$ cat Dockerfile
+FROM busybox:latest
+
+ENTRYPOINT ["hostname"]
+
+[root@sandy007.docker entrypoint-1]$ docker run entryhostname:latest
+3569957f0707
+[root@sandy007.docker entrypoint-1]$ docker run entryhostname:latest date
+hostname: sethostname: Operation not permitted
+[root@sandy007.docker entrypoint-1]$
+[root@sandy007.docker entrypoint-1]$ docker inspect entryhostname
+
+ "Entrypoint": [
+     "hostname"
+
+[root@sandy007.docker entrypoint-1]$ docker run --entrypoint date entryhostname:latest
+Tue Mar 24 02:42:39 UTC 2026
+
+Note: In the first Dockerfile, we used CMD to specify the default command as "hostname". When we ran the container with "docker run hostname date", it ignored the CMD and ran "date" instead. In the second Dockerfile, we used ENTRYPOINT to specify "hostname" as the entry point. When we ran the container without specifying a command, it executed "hostname" and printed the container's hostname. However, when we tried to run "date" with the entrypoint, it failed because ENTRYPOINT is not easily overridden like CMD. We had to use "--entrypoint date" to override the ENTRYPOINT and run "date" instead. This illustrates how ENTRYPOINT works and how it differs from CMD in terms of overriding behavior when running containers.
+
+
+Session 61: Using Entrypoint and CMD together
+-------------------------------------------------------------------------------------------------------------------------
+[root@sandy007.docker ~]$ cd Docker-mastery/udemy-docker-mastery/dockerfiles/entrypoint/entrypoint-cmd-1/
+[root@sandy007.docker entrypoint-cmd-1]$ cat Dockerfile
+FROM ubuntu:latest
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+ENTRYPOINT ["curl"]
+
+CMD ["--help"]
+
+Takeaways: ENTRYPOINT + CMD
+. If both ENTRYPOINT and CMD are set, they combine into a single command for starting the container
+. For CLI tools, use ENTRYPOINT to set the base executable, while CMD should provide default arguments
+· CMD can be easily overridden at docker run without replacing the ENTRYPOINT
+. For pre-launch scripts, ENTRYPOINT should set the script, and CMD should set the final process
+. ENTRYPOINT shell scripts should use exec "$@" to pass execution (PID1) to the CMD
+
+
+Session 62: Shell vs Exec form
+-------------------------------------------------------------------------------------------------------------------------
+General Guidelines
+
+RUN
+Use Shell by default.
+
+ENTRYPOINT
+Always Exec, or CMD can't be used.
+
+CMD
+Use Exec by default, but sometimes Shell
+form is needed for shell features.
+
+ENTRYPOINT + CMD
+Alwavs use Exec to avoid weird edge cases.
+
+
+Takeaways: Shell vs Exec
+- The RUN, ENTRYPOINT, and CMD instructions can be specified in shell form or exec form.
+- Shell form will inject `/bin/sh -c' at the beginning of the command.
+- Overwrite the shell that Docker injects with the SHELL statement, e.g. 'SHELL ["/bin/bash", "-c"]
+- Shell form is needed for variable substitution, chaining commands, piping output, I/O redirection.
+- Exec form (JSON syntax) runs the command without a shell.
+- Exec form ensures ENTRYPOINT/CMD binary is PID 1 and receives signals.
+- Exec form still passes ENVs from Dockerfile to processes started with ENTRYPOINT, CMD, and RUN.
+- Don't mix forms between ENTRYPOINT and CMD, or weird things happen.
+
+- General advice for which form to use:
+    - RUN: Use Shell by default.
+    - ENTRYPOINT: Always Exec, or CMD can't be used.
+    - CMD: Use Exec by default, but sometimes Shell Form is needed for shell features.
+    - ENTRYPOINT + CMD: Always use Exec to avoid weird edge cases.
+
+
+Session 63: Assignment 1: Your Homewarrk
+-------------------------------------------------------------------------------------------------------------------------
+OK, it's time for you to dig into the README.md in this assignment ﻿and try to make the Dockerfiles yourself. The next lecture is me walking through the answer.
+
+
+Session 64: Assignment 1 answer: create CLI utilities
+--------------------------------------------------------------------------------------------------------------------------
+[root@sandy007.docker cmatrix]$ pwd
+/root/Docker-mastery/udemy-docker-mastery/dockerfiles/entrypoint/assignment01/cmatrix
+[root@sandy007.docker cmatrix]$ cat Dockerfile
+# use the README.md file for requirements to build this image
+# If you get stuck, the answer/ directory has the solution
+FROM alpine:3.23.3
+
+RUN apk add --no-cache cmatrix
+
+ENTRYPOINT ["cmatrix"]
+
+CMD ["-abs", "-C", "red"]
+Note: In this assignment, we created a Dockerfile that uses the alpine base image and installs the cmatrix utility. We set the ENTRYPOINT to "cmatrix" and provided default arguments with CMD. When we build and run this image, it will execute the cmatrix command with the specified arguments, creating a cool matrix-like effect in the terminal. You can override the CMD arguments when running the container to customize the behavior of cmatrix as needed.
+
+[root@sandy007.docker cmatrix]$ docker build -t cmatrix .
+[root@sandy007.docker cmatrix]$ docker run -it cmatrix
+
+[root@sandy007.docker cmatrix]$ docker run -it --entrypoint sh cmatrix
+/ # cmatrix --help
+
+
+[root@sandy007.docker apachebench]$ pwd
+/root/Docker-mastery/udemy-docker-mastery/dockerfiles/entrypoint/assignment01/apachebench
+[root@sandy007.docker apachebench]$ cat Dockerfile
+# use the README.md file for requirements to build this image
+# If you get stuck, the answer/ directory has the solution
+
+FROM ubuntu:latest
+
+RUN apt-get update && \
+    apt-get install -y apache2-utils && \
+    rm -rf /var/lib/apt/lists/*
+
+ENTRYPOINT ["ab"]
+
+CMD ["-n", "10", "-c", "2", "https://www.google.com/"]
+
+[root@sandy007.docker apachebench]$ docker build -t ab .
+[root@sandy007.docker apachebench]$ docker run ab
+
+Note: This will run the ApacheBench utility with the default arguments specified in the CMD instruction, which will perform a simple load test against Google's homepage. You can override the CMD arguments when running the container to customize the load test as needed. For example, you could run "docker run ab -n 100 -c 10 https://www.example.com/" to perform a more intensive load test against a different URL.
+
+
+
+
 
 
