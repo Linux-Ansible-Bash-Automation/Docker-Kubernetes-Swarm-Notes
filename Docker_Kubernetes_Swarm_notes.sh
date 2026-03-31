@@ -926,12 +926,15 @@ Takeaways: Shell vs Exec
     - ENTRYPOINT + CMD: Always use Exec to avoid weird edge cases.
 
 
-Session 63: Assignment 1: Your Homewarrk
+Session 63: Assignment 1: create CLI utilities
+-------------------------------------------------------------------------------------------------------------------------
+
+Session 64: Assignment 1: Your Homewarrk
 -------------------------------------------------------------------------------------------------------------------------
 OK, it's time for you to dig into the README.md in this assignment ﻿and try to make the Dockerfiles yourself. The next lecture is me walking through the answer.
 
 
-Session 64: Assignment 1 answer: create CLI utilities
+Session 65: Assignment 1 answer: create CLI utilities
 --------------------------------------------------------------------------------------------------------------------------
 [root@sandy007.docker cmatrix]$ pwd
 /root/Docker-mastery/udemy-docker-mastery/dockerfiles/entrypoint/assignment01/cmatrix
@@ -976,7 +979,225 @@ CMD ["-n", "10", "-c", "2", "https://www.google.com/"]
 Note: This will run the ApacheBench utility with the default arguments specified in the CMD instruction, which will perform a simple load test against Google's homepage. You can override the CMD arguments when running the container to customize the load test as needed. For example, you could run "docker run ab -n 100 -c 10 https://www.example.com/" to perform a more intensive load test against a different URL.
 
 
+Session 66: Assignment 2 : Startup Scripts
+-------------------------------------------------------------------------------------------------------------------------
+
+Session 67: Assignment 2 : Your Homework
+-------------------------------------------------------------------------------------------------------------------------
+OK, it's time for you to dig into the README.md in this assignment and try to make the Dockerfile yourself. The next lecture is me walking through the answer.
 
 
+Session 68: Assignment 2 Answers: Startup Scripts
+-------------------------------------------------------------------------------------------------------------------------
+
+[root@sandy007.docker assignment02]$ pwd
+/root/Docker-mastery/udemy-docker-mastery/dockerfiles/entrypoint/assignment02
+
+[root@sandy007.docker assignment02]$ cat Dockerfile
+# use the README.md file for requirements to build this image
+# If you get stuck, the answer/ directory has the solution
+FROM python:slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+VOLUME /app/data
+
+ENTRYPOINT ["./docker-entrypoint.sh"]
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+
+[root@sandy007.docker assignment02]$ docker build --no-cache -t fastapi .
+    {to build a new image from the Dockerfile in the current directory and tag it as fastapi:latest, using the --no-cache option to ensure that all layers are rebuilt from scratch, which can be useful for troubleshooting or when you want to make sure that all dependencies are freshly installed.
+[root@sandy007.docker assignment02]$ docker run -p 8000:8000 fastapi
+    {to run a new container from the fastapi image, publish port 8000 to the host, this will allow you to access the FastAPI application running inside the container through your web browser or API client by navigating to http://localhost:8000. The ENTRYPOINT script will be executed when the container starts, and it will run the uvicorn server with the specified command-line arguments to serve the FastAPI application.
+
+http://192.168.43.102:8000/docs
+    {to access the automatically generated API documentation for the FastAPI application, which is available at the /docs endpoint when you run the container and publish port 8000. You can use this interface to interact with your API and test its endpoints.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Section 8: Making it Easier with Docker Compose: The Multi-Container Tool   
+===========================================================================================================================
+
+Session 69: Docker Compose and the docker-compose.yml file
+-------------------------------------------------------------------------------------------------------------------------
+· Why: configure relationships between containers
+· Why: save our docker container run settings in easy-to-read file
+· Why: create one-liner developer environment startups
+· Comprised of 2 separate but related things
+· 1. YAML-formatted file that describes our solution options for:
+    - containers
+    - networks
+    - volumes
+· 2. A CLI tool docker-compose used for local dev/test automation with those YAML files
+
+· Compose YAML format has it's own versions: 1, 2, 2.1, 3, 3.1
+. YAML file can be used with docker-compose command for local docker automation or ..
+· With docker directly in production with Swarm (as of v1.13)
+. docker-compose -- help
+· docker-compose. yml is default filename, but any can be used with
+# docker-compose -f
+
+Official docs: https://docs.docker.com/compose/overview/
+
+
+Session 70: Compose V2
+-------------------------------------------------------------------------------------------------------------------------
+In 2022, Docker announced the General Availability of Docker Compose V2.
+
+It supports all the same commands taught in this course and is meant to be fully backward compatible. It's auto-installed by Docker Desktop.
+
+All you need to do is simply remove the dash from your Docker Compose commands:
+
+docker-compose up becomes docker compose up, etc.
+
+Behind the scenes, Docker has rebuilt the old docker-compose Python binary with go, the same language as the Docker CLI, and added Compose V2 as a CLI plugin rather than a separate command. It's now faster and more stable, and should "just work" as a drop-in replacement for the V1 docker-compose CLI.
+
+So anywhere in this course that I type docker-compose, just replace that with docker compose
+
+
+Session 71: Trying Out Basic Compose Commands
+-------------------------------------------------------------------------------------------------------------------------
+. CLI tool comes with Docker for Windows/Mac, but separate download for Linux
+· Not a production-grade tool but ideal for local development and test
+. Two most common commands are
+    - docker-compose up # setup volumes/networks and start all containers
+    - docker-compose down # stop all containers and remove cont/vol/net
+. If all your projects had a Dockerfile and docker-compose. yml then "new developer onboarding" would be:
+    - git clone github.com/some/software
+    - docker-compose up
+
+root@sandy010.DNS:~/Docker-mastery/udemy-docker-mastery/compose-sample-2# pwd
+/root/Docker-mastery/udemy-docker-mastery/compose-sample-2
+
+root@sandy010.DNS:~/Docker-mastery/udemy-docker-mastery/compose-sample-2# ls -l
+total 8
+-rw-r--r-- 1 root root 599 Feb 24 12:59 docker-compose.yml
+-rw-r--r-- 1 root root 298 Mar 31 06:07 nginx.conf
+
+# docker compose up
+    {to start the services defined in the docker-compose.yml file, this will create and start the containers, networks, and volumes as specified in the YAML file. You can also use the -d flag to run the containers in detached mode, allowing you to continue using your terminal while the services are running.
+
+# docker compose logs
+    {to view the logs of the services defined in your docker-compose.yml file, this will show you the output from all the containers that are part of your Compose application, allowing you to see what's happening inside each container and troubleshoot any issues that may arise. You can also specify a particular service to view its logs by using docker compose logs <service_name>.
+
+# docker compose up -d
+    {to start the services defined in the docker-compose.yml file in detached mode, this will run the containers in the background and return control to your terminal, allowing you to continue working while the services are running. You can check the status of the containers with docker compose ps and view their logs with docker compose logs as needed.
+
+# docker compose --help
+    {to view the help information for the docker compose command, this will show you a list of available subcommands and options that you can use with docker compose to manage your Compose applications, including how to start, stop, and view logs for your services, as well as other useful commands for working with Docker Compose.
+
+# docker compose top
+    {to view the running processes inside the containers of your Compose application, this will show you a list of processes running in each container, similar to the output of the top command in Linux, allowing you to see what is currently running inside your containers and monitor their resource usage.
+
+# docker compose down
+    {to stop and remove the containers, networks, and volumes defined in your docker-compose.yml file, this will clean up all the resources associated with your Compose application, allowing you to start fresh the next time you run docker compose up. You can also use additional flags with docker compose down to specify whether to remove volumes or images as well.
+
+
+Session 72: Version Dependencies in Multi Tier Apps
+-------------------------------------------------------------------------------------------------------------------------
+App versions in Docker
+Now that you're learning Docker Compose for managing multi-container apps, it's important to remember that every app with dependencies, will also have version requirements for those dependencies.
+
+If you add an app and a database to a Compose file, then that app is going to have specific database versions it is compatible with.
+
+Version dependencies aren't new, so they aren't technically a Docker thing, but we *do* use Docker and Compose to control versions of apps like Drupal, PostgreSQL, MySQL, Redis, Wordpress, etc.
+
+Therefore, when building your Dockerfile and docker-compose.yml file, remember that you'll need to check the compatible versions in that apps documentation.
+
+Coming up
+In the next few Assignments, you'll be using a Drupal web server with a compatible database server. For this course, I pick specific versions of these dependencies so they are certain to work together. I've done the research and found which versions work together through reading and testing.
+
+You may need to do the same, especially if you want to use versions together that I haven't tested.  I will often leave old versions in this course (as long as they still work) for several reasons:
+
+1. During your career, you'll be running lots of old versions of apps. It's worthwhile learning about how various app versions work together with other apps. 
+2. Learning "the latest version of every sample app" isn't the focus of this course, but rather how to manage *any* versions of an app in Docker and Kubernetes.
+
+Drupal changes
+Due to recent breaking changes in Drupal, be sure you're using the below versions in docker commands and YAML, so that it'll work as expected. While a lecture video might show a slightly older version, know that any code examples and answer files in the course repository have been updated to reflect these versions:
+
+drupal:9
+postgres:14
+Now let's build some Compose files!
+
+
+Session 73: Compose Assignments
+-------------------------------------------------------------------------------------------------------------------------
+In the next lecture, you'll start one of two Compose assignments in this Section. This first one should be done in the compose-assignment-1 directory from the source code repository you cloned at the start of the course. In the answer video to that assignment, I mistakenly use the compose-assignment-2 directory, so pretend my directory ends in a one 🤭.
+
+Note that these two Compose assignment lectures are named according to the directory they use, to help avoid confusion.
+
+
+Session 74: Compose Assignment 1: Build a Compose File For a Multi-Container project
+-------------------------------------------------------------------------------------------------------------------------
+· Build a basic compose file for a Drupal content management system website. Docker Hub is your friend
+· Use the drupal image along with the postgres image
+· Use ports to expose Drupal on 8080 so you can localhost:8080
+· Be sure to set POSTGRES_PASSWORD for postgres
+· Walk though Drupal setup via browser
+· Tip: Drupal assumes DB is localhost, but it's service name
+· Extra Credit: Use volumes to store Drupal unique data
+
+
+Session 75: Compose Assignment 1: Build a Compose File For a Multi-Container project:
+-------------------------------------------------------------------------------------------------------------------------
+root@sandy010.DNS:~/Docker-mastery/udemy-docker-mastery/compose-assignment-2# pwd
+/root/Docker-mastery/udemy-docker-mastery/compose-assignment-2
+root@sandy010.DNS:~/Docker-mastery/udemy-docker-mastery/compose-assignment-2# cat docker-compose.yml
+# create your drupal and postgres config here, based off the last assignment
+version: '2'
+
+services:
+  drupal:
+    image: drupal
+    ports:
+      - "8080:80"
+    volumes :
+      - drupal-modules:/var/www/html/modules
+      - drupal-profiles:/var/www/html/profiles
+      - drupal-sites:/var/www/html/sites
+      - drupal-themes:/var/www/html/themes
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_PASSWORD=mypasswd
+
+volumes :
+  drupal-modules:
+  drupal-profiles:
+  drupal-sites:
+  drupal-themes:
+
+
+# docker compose up
+    {to start the services defined in the docker-compose.yml file, this will create and start the Drupal and PostgreSQL containers, set up the necessary volumes for Drupal data persistence, and expose Drupal on port 8080. You can then access Drupal through your web browser at http://localhost:8080 and complete the setup process, connecting it to the PostgreSQL database using the service name "postgres" as the database host. The volumes will ensure that any changes you make in Drupal are persisted even if you stop and remove the containers.
+
+# docker compose ps
+
+# docker compose down --help
+
+# docker compose down -v
+    {to stop and remove the containers, networks, and volumes defined in your docker-compose.yml file, this will clean up all the resources associated with your Compose application, allowing you to start fresh the next time you run docker compose up. The -v flag will also remove the named volumes that were created for Drupal data persistence, so be cautious when using this if you want to keep your Drupal data.
+
+
+Session 76: Adding Image Building to Compose Files
+-------------------------------------------------------------------------------------------------------------------------
 
 
